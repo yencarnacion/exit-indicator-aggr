@@ -1,0 +1,4 @@
+thresholds:
+  - threshold: 5000
+  - threshold: 10000
+  - threshold: 20000

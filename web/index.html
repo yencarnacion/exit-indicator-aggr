@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>exit-indicator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>exit-indicator</h1>
+      <div class="header-right">
+        <label class="switch" title="Compact mode">
+          <input id="compactToggle" type="checkbox" />
+          <span class="slider"></span>
+          <span class="switch-label">Compact</span>
+        </label>
+        <span id="statusBadge" class="badge badge-disconnected">Disconnected</span>
+      </div>
+    </header>
+
+    <section class="controls">
+      <!-- TICKER combobox -->
+      <div class="field">
+        <label for="tickerInput">Ticker</label>
+        <!-- Hidden mirrors selected value for app.js compatibility -->
+        <input id="symbolInput" type="hidden" value=""/>
+        <div class="combo" id="tickerCombo" role="combobox" aria-haspopup="listbox" aria-expanded="false" data-max-selected="1">
+          <div class="tokenbox" id="tickerTokenbox">
+            <input
+              id="tickerInput"
+              class="combo-input"
+              type="text"
+              placeholder="Select or type a stock symbol"
+              autocomplete="off"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              aria-autocomplete="list"
+              aria-controls="tickerListbox"
+              aria-activedescendant=""
+            />
+          </div>
+          <div id="tickerListbox" class="dropdown" role="listbox" tabindex="-1" aria-label="Stock symbols"></div>
+        </div>
+        <div id="tickerError" class="combo-error" aria-live="polite"></div>
+      </div>
+
+      <!-- Side (unchanged) -->
+      <div class="field">
+        <label>Side</label>
+        <div class="radio-group" id="sideGroup">
+          <label class="radio">
+            <input type="radio" name="side" id="sideBid" value="BID" />
+            <span>Bid</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="side" id="sideAsk" value="ASK" checked />
+            <span>Ask</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- THRESHOLD combobox -->
+      <div class="field">
+        <label for="thresholdVisInput">Threshold (shares)</label>
+        <!-- Hidden mirrors selected value for app.js compatibility -->
+        <input id="thresholdInput" type="hidden" value=""/>
+        <div class="combo" id="thresholdCombo" role="combobox" aria-haspopup="listbox" aria-expanded="false" data-max-selected="1">
+          <div class="tokenbox" id="thresholdTokenbox">
+            <input
+              id="thresholdVisInput"
+              class="combo-input"
+              type="text"
+              placeholder="Select or type a threshold"
+              inputmode="numeric"
+              autocomplete="off"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              aria-autocomplete="list"
+              aria-controls="thresholdListbox"
+              aria-activedescendant=""
+            />
+          </div>
+          <div id="thresholdListbox" class="dropdown" role="listbox" tabindex="-1" aria-label="Thresholds"></div>
+        </div>
+        <div id="thresholdError" class="combo-error" aria-live="polite"></div>
+      </div>
+
+      <!-- DOLLAR (T&S) combobox -->
+      <div class="field">
+        <label for="dollarVisInput">Dollar value (T&S)</label>
+        <input id="dollarHidden" type="hidden" value=""/>
+        <div class="combo" id="dollarCombo" role="combobox" aria-haspopup="listbox" aria-expanded="false" data-max-selected="1">
+          <div class="tokenbox" id="dollarTokenbox">
+            <input
+              id="dollarVisInput"
+              class="combo-input"
+              type="text"
+              placeholder="Select a $ level"
+              inputmode="numeric" autocomplete="off"
+              autocapitalize="none" autocorrect="off" spellcheck="false"
+              aria-autocomplete="list" aria-controls="dollarListbox" aria-activedescendant=""
+            />
+          </div>
+          <div id="dollarListbox" class="dropdown" role="listbox" tabindex="-1" aria-label="Dollar values"></div>
+        </div>
+        <div id="dollarError" class="combo-error" aria-live="polite"></div>
+      </div>
+
+      <!-- Silent (global mute for alert+T&S) -->
+      <div class="field">
+        <label>&nbsp;</label>
+        <label class="check">
+          <input id="silentToggle" type="checkbox"/>
+          <span>Silent (mute all)</span>
+        </label>
+      </div>
+
+      <!-- T&S audio UX toggles -->
+      <div class="field">
+        <label>&nbsp;</label>
+        <label class="check">
+          <input id="machineGunToggle" type="checkbox" checked />
+          <span>Aggr-style tones</span>
+        </label>
+        <label class="check" style="margin-top:6px">
+          <input id="voiceBigOnlyToggle" type="checkbox" checked />
+          <span>Full chord only on big prints</span>
+        </label>
+      </div>
+
+      <!-- Micro VWAP controls: window + band k -->
+      <div class="field">
+        <label for="microVwapVisInput">µVWAP Window (min)</label>
+        <input id="microVwapHidden" type="hidden" value="5"/>
+        <div class="combo" id="microVwapCombo" role="combobox" aria-haspopup="listbox" aria-expanded="false" data-max-selected="1">
+          <div class="tokenbox" id="microVwapTokenbox">
+            <input
+              id="microVwapVisInput"
+              class="combo-input"
+              type="text"
+              placeholder="2, 5, 10, 15 or type"
+              inputmode="numeric"
+              autocomplete="off"
+              aria-autocomplete="list"
+              aria-controls="microVwapListbox"
+              aria-activedescendant=""
+            />
+          </div>
+          <div id="microVwapListbox" class="dropdown" role="listbox" tabindex="-1" aria-label="µVWAP window options"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="microBandSelect">Band σ</label>
+        <select id="microBandSelect">
+          <option value="1">1σ</option>
+          <option value="1.5">1.5σ</option>
+          <option value="2" selected>2σ</option>
+        </select>
+      </div>
+
+      <div class="buttons">
+        <button id="startBtn">Subscribe</button>
+        <button id="stopBtn" class="secondary">Stop</button>
+        <button id="testSoundBtn" class="secondary">Test Sound</button>
+      </div>
+    </section>
+
+    <section class="book">
+
+      <!-- Summary stats row -->
+      <div class="book-stats" id="bookStats">
+        <div class="stat"><span class="stat-label">Best Bid</span><span class="stat-val" id="bestBid">—</span></div>
+        <div class="stat"><span class="stat-label">Best Ask</span><span class="stat-val" id="bestAsk">—</span></div>
+        <div class="stat"><span class="stat-label">Spread</span><span class="stat-val" id="spread">—</span></div>
+        <div class="stat"><span class="stat-label">Last</span><span class="stat-val" id="lastPrice">—</span></div>
+        <div class="stat"><span class="stat-label">Volume</span><span class="stat-val" id="dayVolume">—</span></div>
+        <div class="stat" title="Order Book Imbalance (−1 ask..+1 bid)">
+          <span class="stat-label">OBI</span>
+          <span class="stat-val" id="obiVal">—</span>
+        </div>
+        <div class="stat" title="Micro VWAP ± k·σ (current micro-fair value)">
+          <span class="stat-label">µVWAP</span>
+          <span class="stat-val" id="microVwapVal">—</span>
+        </div>
+      </div>
+
+      <!-- OBI mini chart (−1..+1), compact and high-contrast -->
+      <div class="obi-mini" id="obiMiniWrap" title="OBI (−1..+1) real time">
+        <div class="signal-pill" id="actionHintPill">—</div>
+        <canvas id="obiMiniCanvas" aria-label="Order Book Imbalance mini chart" role="img"></canvas>
+      </div>
+
+      <!-- L2 legend (shared) -->
+      <div class="legend l2-legend" title="Bar length shows size ÷ threshold; color intensifies as ratio grows">
+        <span class="chip chip-neutral">&lt;1×</span>
+        <span class="chip chip-warn">1.0–1.5×</span>
+        <span class="chip chip-hot">1.5–2.0×</span>
+        <span class="chip chip-danger">≥2×</span>
+        <span class="hud-right">
+          <span id="volBarBadge"
+                class="badge badge-volbar"
+                title="Current (forming) 1m volume bar">000,000,000</span>
+
+          <span id="rvolBadge"
+                class="badge badge-rvol"
+                title="RVOL (median baseline). ⚡ = pace alert.">RVOL —</span>
+        </span>
+      </div>
+
+      <!-- 1m real-time volume chart (replaces the two unused DOM-history graphs) -->
+      <div class="vol1m-wrap" title="1m volume: green = close > open, red = close < open">
+        <canvas id="vol1mCanvas" class="vol1m" aria-label="1 minute volume chart" role="img"></canvas>
+      </div>
+
+      <div class="book-panels">
+        <!-- Bid ladder -->
+        <div class="book-panel bid">
+          <table id="bookTableBid">
+            <thead>
+              <tr>
+                <th class="col-rank">#</th>
+                <th class="col-price">Price</th>
+                <th class="col-size">Agg. Size</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <!-- Central micro-footprint strip -->
+        <div class="footprint-strip" id="footprintStrip" aria-label="Recent aggressive flow by DOM rank">
+          <table>
+            <tbody id="footprintBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Ask ladder -->
+        <div class="book-panel ask">
+          <table id="bookTableAsk">
+            <thead>
+              <tr>
+                <th class="col-rank">#</th>
+                <th class="col-price">Price</th>
+                <th class="col-size">Agg. Size</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="tape-wrap" id="tapeWrap" aria-label="Time & Sales">
+      <div class="tape-quote">
+        <div>Bid: <span id="tapeBid">—</span></div>
+        <div>Ask: <span id="tapeAsk">—</span></div>
+        <div>Spread: <span id="tapeSpread">—</span></div>
+      </div>
+      <div class="tape" id="tape" aria-live="polite"></div>
+    </section>
+
+    <section class="alerts">
+      <h2>Alert Log</h2>
+      <div id="alertLog" class="log"></div>
+    </section>
+  </div>
+
+  <!-- app core first -->
+  <script src="/app.js"></script>
+
+  <!-- yaml parser for the combobox data -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+
+  <!-- combobox wiring -->
+  <script>
+  (function () {
+    // Generic combobox factory (single-select). Parameterized for Ticker & Thresholds.
+    function initYamlCombo(opts) {
+      const {
+        comboId, tokenboxId, inputId, listboxId, hiddenId, errorId,
+        fetchUrl, cacheKey, placeholder, normalize, isValid, keyCandidates
+      } = opts;
+
+      const combo = document.getElementById(comboId);
+      const tokenbox = document.getElementById(tokenboxId);
+      const input = document.getElementById(inputId);
+      const listbox = document.getElementById(listboxId);
+      const hidden = document.getElementById(hiddenId);
+      const errorEl = document.getElementById(errorId);
+
+      const MAX_SELECTED = 1;
+      const selected = new Set();
+      let baseList = [];
+      let filtered = [];
+      let focusedIndex = -1;
+
+      function err(msg) { if (errorEl) errorEl.textContent = msg || ''; }
+      function clearErr() { err(''); }
+
+      function extractValue(obj) {
+        for (const k of keyCandidates) {
+          if (obj && Object.prototype.hasOwnProperty.call(obj, k)) {
+            const v = obj[k];
+            if (v === 0 || v) return String(v);
+          }
+        }
+        // fallback: if obj is a scalar or has a single property
+        if (typeof obj === 'string' || typeof obj === 'number') return String(obj);
+        const keys = obj ? Object.keys(obj) : [];
+        return keys.length ? String(obj[keys[0]]) : '';
+      }
+
+      // Pretty text for display; keep JSON for storage
+      function toDisplay(val) {
+        try { const j = JSON.parse(String(val));
+          if (j && typeof j === 'object' && j.label) return String(j.label);
+        } catch (_) {}
+        return String(val);
+      }
+
+      async function loadYaml() {
+        if (!fetchUrl) {
+          baseList = [];
+          return;
+        }
+        try {
+          const res = await fetch(fetchUrl, { cache: 'no-store' });
+          const txt = await res.text();
+          if (!window.jsyaml) { err('js-yaml failed to load.'); return; }
+          const data = window.jsyaml.load(txt) || {};
+          const arr = Array.isArray(data.watchlist) ? data.watchlist : [];
+          // If items look like Option A (label/threshold/big_threshold),
+          // store each option as JSON, but display only the label.
+          const looksOptionA = arr.some(o => o && typeof o === 'object' &&
+            ('label' in o) && ('threshold' in o || 'big_threshold' in o));
+          if (looksOptionA) {
+            baseList = arr.map(o => JSON.stringify({
+              label: String(o.label ?? ''),
+              threshold: Number(o.threshold ?? 0),
+              big_threshold: Number(o.big_threshold ?? 0),
+            }));
+          } else {
+            baseList = arr.map(extractValue).map(s => normalize(String(s))).filter(Boolean);
+          }
+          clearErr();
+        } catch (e) {
+          err('Failed to load options; type to add your own.');
+          baseList = [];
+        }
+      }
+
+      // session cache enables user-entered values to appear as suggestions later in the session
+      const cache = {
+        key: cacheKey,
+        get() {
+          try {
+            return (JSON.parse(sessionStorage.getItem(cacheKey)) || [])
+              .map(o => o && o.value ? normalize(String(o.value)) : '')
+              .filter(Boolean);
+          } catch { return []; }
+        },
+        add(val) {
+          const prev = cache.get();
+          if (!prev.includes(val)) {
+            prev.push(val);
+            sessionStorage.setItem(cacheKey, JSON.stringify(prev.map(v => ({ value: v }))));
+          }
+        }
+      };
+
+      function suggestionUniverse() {
+        const fromCache = cache.get().filter(s => !baseList.includes(s));
+        return [...baseList, ...fromCache];
+      }
+
+      function syncHidden() {
+        const v = [...selected][0] || '';
+        hidden.value = v;
+        // bubble a "change" for app.js listeners
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      function renderTokens() {
+        [...tokenbox.querySelectorAll('.token')].forEach(n => n.remove());
+        [...selected].forEach(val => {
+          const t = document.createElement('span');
+          t.className = 'token';
+          t.setAttribute('data-value', val);
+          const label = toDisplay(val);
+          t.innerHTML = `${label} <button type="button" aria-label="Remove ${label}">&times;</button>`;
+          t.querySelector('button').addEventListener('click', () => {
+            selected.clear();
+            renderTokens(); syncHidden();
+            input.readOnly = false;
+            input.placeholder = placeholder;
+            filterAndRender(input.value);
+            input.focus();
+          });
+          tokenbox.insertBefore(t, input);
+        });
+      }
+
+      function openDropdown() {
+        combo.setAttribute('aria-expanded', 'true');
+        listbox.classList.add('open');
+      }
+      function closeDropdown() {
+        combo.setAttribute('aria-expanded', 'false');
+        listbox.classList.remove('open');
+        focusedIndex = -1;
+        input.setAttribute('aria-activedescendant', '');
+      }
+
+      function focusByIndex(idx) {
+        const options = listbox.querySelectorAll('.option');
+        options.forEach(o => o.classList.remove('focused'));
+        if (idx >= 0 && idx < options.length) {
+          focusedIndex = idx;
+          const el = options[idx];
+          el.classList.add('focused');
+          input.setAttribute('aria-activedescendant', el.id);
+          const r = el.getBoundingClientRect();
+          const pr = listbox.getBoundingClientRect();
+          if (r.top < pr.top) listbox.scrollTop -= (pr.top - r.top);
+          if (r.bottom > pr.bottom) listbox.scrollTop += (r.bottom - pr.bottom);
+        } else {
+          focusedIndex = -1;
+          input.setAttribute('aria-activedescendant', '');
+        }
+      }
+
+      function filterAndRender(query) {
+        listbox.innerHTML = '';
+        const q = normalize(query || '');
+        const already = new Set(selected);
+
+        filtered = suggestionUniverse()
+          .filter(opt => !already.has(opt))
+          .filter(opt => {
+            const text = toDisplay(opt);
+            return q === '' ? true : text.toUpperCase().startsWith(q.toUpperCase());
+          });
+
+        if (filtered.length === 0) {
+          const div = document.createElement('div');
+          div.className = 'no-results';
+          div.textContent = q && isValid(q) ? `Press Enter to add "${q}"` :
+                            (q ? 'No matches' : 'Type to search');
+          listbox.appendChild(div);
+          return;
+        }
+
+        filtered.forEach((opt, idx) => {
+          const d = document.createElement('div');
+          d.className = 'option';
+          d.setAttribute('role', 'option');
+          d.setAttribute('id', `${listboxId}-opt-${idx}`);
+          d.setAttribute('aria-selected', 'false');
+          d.textContent = toDisplay(opt);
+          d.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            addValue(opt);
+          });
+          listbox.appendChild(d);
+        });
+        focusByIndex(focusedIndex);
+      }
+
+      function addValue(raw) {
+        const val = normalize(raw);
+        if (!isValid(val)) { err('Invalid value'); return; }
+        selected.clear();
+        selected.add(val);
+        cache.add(val);
+        renderTokens();
+        input.value = '';
+        input.readOnly = true;
+        input.placeholder = `Selected: ${toDisplay(val)}`;
+        closeDropdown();
+        syncHidden();
+      }
+
+      // Events
+      tokenbox.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.token button')) return;
+        e.preventDefault();
+        input.focus();
+        filterAndRender(input.value);
+        openDropdown();
+      });
+
+      input.addEventListener('focus', () => {
+        filterAndRender(input.value);
+        openDropdown();
+      });
+      input.addEventListener('input', () => {
+        filterAndRender(input.value);
+        openDropdown();
+      });
+      input.addEventListener('keydown', (e) => {
+        const options = listbox.querySelectorAll('.option');
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            if (!listbox.classList.contains('open')) openDropdown();
+            focusByIndex(Math.min(focusedIndex + 1, options.length - 1));
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            focusByIndex(Math.max(focusedIndex - 1, -1));
+            break;
+          case 'Enter':
+            e.preventDefault();
+            if (focusedIndex >= 0 && filtered[focusedIndex]) {
+              // Use the underlying value (e.g. Dollar JSON), not the displayed label
+              addValue(filtered[focusedIndex]);
+            } else {
+              const v = normalize(input.value);
+              if (isValid(v)) addValue(v);
+            }
+            break;
+          case 'Backspace':
+            if (input.value === '' && selected.size) {
+              selected.clear(); renderTokens(); syncHidden();
+              input.readOnly = false; input.placeholder = placeholder;
+              filterAndRender('');
+            }
+            break;
+          case 'Escape':
+            closeDropdown();
+            break;
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if (!combo.contains(e.target)) closeDropdown();
+      });
+
+      // Boot: load YAML → optionally seed initial value → render
+      (async () => {
+        await loadYaml();
+        renderTokens();
+        filterAndRender('');
+      })();
+
+      return {
+        setInitial(value) {
+          const v = normalize(String(value || ''));
+          if (!v) return;
+          selected.clear();
+          selected.add(v);
+          cache.add(v);
+          renderTokens();
+          input.value = '';
+          input.readOnly = true;
+          input.placeholder = `Selected: ${toDisplay(v)}`;
+          closeDropdown();
+          syncHidden();
+        }
+      };
+    }
+
+    // --- Initialize both combos ---
+    const tickerCombo = initYamlCombo({
+      comboId: 'tickerCombo',
+      tokenboxId: 'tickerTokenbox',
+      inputId: 'tickerInput',
+      listboxId: 'tickerListbox',
+      hiddenId: 'symbolInput',
+      errorId: 'tickerError',
+      fetchUrl: '/api/yaml/watchlist',
+      cacheKey: 'ei.ticker.custom',
+      placeholder: 'Select or type a stock symbol',
+      normalize: s => s.trim().toUpperCase(),
+      isValid: s => /^[A-Z0-9.\-]{1,10}$/.test(s),
+      keyCandidates: ['symbol', 'ticker', 'value']
+    });
+
+    const thresholdCombo = initYamlCombo({
+      comboId: 'thresholdCombo',
+      tokenboxId: 'thresholdTokenbox',
+      inputId: 'thresholdVisInput',
+      listboxId: 'thresholdListbox',
+      hiddenId: 'thresholdInput',
+      errorId: 'thresholdError',
+      fetchUrl: '/api/yaml/thresholds',
+      cacheKey: 'ei.threshold.custom',
+      placeholder: 'Select or type a threshold',
+      normalize: s => String(s).trim().replace(/[, ]+/g,''),
+      isValid: s => /^\d{1,10}$/.test(s),  // numeric shares only
+      keyCandidates: ['thresholds', 'threshold', 'value', 'shares']
+    });
+
+    const dollarCombo = initYamlCombo({
+      comboId: 'dollarCombo',
+      tokenboxId: 'dollarTokenbox',
+      inputId: 'dollarVisInput',
+      listboxId: 'dollarListbox',
+      hiddenId: 'dollarHidden',
+      errorId: 'dollarError',
+      fetchUrl: '/api/yaml/dollar-values',
+      cacheKey: 'ei.dollar.custom',
+      placeholder: 'Select a $ level',
+      // Normalize to JSON string to carry label/threshold/big_threshold
+      normalize: (s) => String(s).trim(),
+      isValid: (s) => true,
+      keyCandidates: ['label','threshold','big_threshold','value']
+    });
+
+    // Option A: translate YAML entries into suggestion values (stored as JSON)
+    (async () => {
+      try {
+        const res = await fetch('/api/yaml/dollar-values', { cache: 'no-store' });
+        const txt = await res.text();
+        if (window.jsyaml) {
+          const data = window.jsyaml.load(txt) || {};
+          const arr = Array.isArray(data.watchlist) ? data.watchlist : [];
+          // Pick the first as initial (optional)
+          const first = arr[0];
+          if (first) {
+            dollarCombo.setInitial(JSON.stringify({
+              label: String(first.label || ''),
+              threshold: Number(first.threshold || 0),
+              big_threshold: Number(first.big_threshold || 0)
+            }));
+          }
+        }
+      } catch {}
+    })();
+
+    // Seed the threshold chip to match server's current/default value,
+    // so the UI and server state are aligned from the first render.
+    (async () => {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        const cfg = await res.json();
+        const initialThr = cfg.currentThresholdShares || cfg.defaultThresholdShares || 20000;
+        thresholdCombo.setInitial(initialThr);
+      } catch {}
+    })();
+
+    // Initialize µVWAP window combo with defaults 2,5,10,15 and freeform add
+    const microVwapCombo = initYamlCombo({
+      comboId: 'microVwapCombo',
+      tokenboxId: 'microVwapTokenbox',
+      inputId: 'microVwapVisInput',
+      listboxId: 'microVwapListbox',
+      hiddenId: 'microVwapHidden',
+      errorId: 'microVwapError', // non-existent; safe no-op
+      fetchUrl: '',               // no server YAML; we seed locally
+      cacheKey: 'ei.microvwap.window',
+      placeholder: '2, 5, 10, 15 or type',
+      normalize: s => String(s).trim().replace(/[, ]+/g,''),
+      isValid: s => /^\d{1,3}$/.test(s),  // minutes
+      keyCandidates: ['value']
+    });
+
+    // Load microVWAP config from server and seed UI controls
+    (async () => {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        const cfg = await res.json();
+        const mvCfg = cfg.microVWAPConfig || {};
+        // Seed window if available
+        const minutes = mvCfg.minutes != null ? mvCfg.minutes : 5;
+        microVwapCombo.setInitial(minutes);
+        // Seed band_k if available
+        const bandK = mvCfg.bandK != null ? mvCfg.bandK : 2.0;
+        const bandSelect = document.getElementById('microBandSelect');
+        if (bandSelect) {
+          bandSelect.value = String(bandK);
+        }
+      } catch (e) {
+        // Fallback to defaults on error
+        microVwapCombo.setInitial(5);
+      }
+    })();
+
+    // When µVWAP window selection changes, propagate to server
+    const microHidden = document.getElementById('microVwapHidden');
+    if (microHidden) {
+      microHidden.addEventListener('change', async () => {
+        const minutes = parseFloat(microHidden.value || "5") || 5;
+        const band_k = parseFloat(document.getElementById('microBandSelect')?.value || "2") || 2;
+        try {
+          await fetch('/api/microvwap', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ minutes, band_k })
+          });
+        } catch (e) {
+          console.warn('microVWAP window update failed', e);
+        }
+      });
+    }
+
+    // Notify server when band σ changes (keep microVWAP config aligned mid-session)
+    document.getElementById('microBandSelect').addEventListener('change', async () => {
+      const minutes = parseFloat(document.getElementById('microVwapHidden').value || "5") || 5;
+      const band_k = parseFloat(document.getElementById('microBandSelect').value || "2") || 2;
+      try {
+        await fetch('/api/microvwap', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ minutes, band_k })
+        });
+      } catch (e) {
+        console.warn('microVWAP band update failed', e);
+      }
+    });
+  })();
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    }
+  </script>
+</body>
+</html>

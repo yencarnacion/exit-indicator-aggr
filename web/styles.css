@@ -1,0 +1,483 @@
+:root {
+  --bg: #0b0f14;
+  --panel: #111723;
+  --text: #e6edf3;
+  --muted: #98a6b3;
+  --accent: #4fb3ff;
+  --accent2: #ffb84f;
+  --danger: #ff6b6b;
+  --good: #2ecc71;
+  --row: #0f1724;
+  --bar-neutral: #2a6aa3;
+  --bar-warn: #e3a93d;
+  --bar-hot: #e0792f;
+  --bar-danger: #e44c4c;
+  /* OBI mini chart palette (science-friendly high contrast on dark) */
+  --obi-line: #ffcc00;   /* bright yellow; change to #e6edf3 (white) or #d96eff (magenta) if you prefer */
+  --obi-grid: #223149;   /* faint grid/bounds */
+  --obi-zero: #485a70;   /* zero line */
+  /* NEW: distinct colors outside the band */
+  --obi-line-pos: #2ecc71; /* > +0.10 */
+  --obi-line-neg: #ff6b6b; /* < -0.10 */
+  /* NEW: DOM history hues */
+  --dom-bid: #4fb3ff;
+  --dom-ask: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 20px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 22px; font-weight: 700; }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.badge { padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+.badge-live { background: rgba(46,204,113,0.15); color: var(--good); border: 1px solid rgba(46,204,113,0.3); }
+.badge-disconnected { background: rgba(255,107,107,0.12); color: var(--danger); border: 1px solid rgba(255,107,107,0.3); }
+
+/* --- RVOL badge: scalper-fast HUD --- */
+.badge-rvol {
+  background: rgba(255,184,79,0.10);
+  color: var(--accent2);
+  border: 1px solid rgba(255,184,79,0.28);
+  font-variant-numeric: tabular-nums;
+}
+.badge-rvol.pace::before { content: "⚡ "; }
+.badge-rvol.hot {
+  background: rgba(255,184,79,0.18);
+  border-color: rgba(255,184,79,0.40);
+}
+.badge-rvol.danger {
+  background: rgba(46,204,113,0.16);
+  color: var(--good);
+  border-color: rgba(46,204,113,0.35);
+}
+.badge-rvol.pulse { animation: rvolPulse 0.7s ease-out; }
+@keyframes rvolPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,184,79,0.65); }
+  100% { box-shadow: 0 0 0 14px rgba(255,184,79,0); }
+}
+
+/* Right-side HUD group in the L2 legend (VOL box + RVOL badge) */
+.legend .hud-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Current 1m bar volume badge (000,000,000) */
+.badge-volbar {
+  background: rgba(79,179,255,0.10);
+  color: var(--accent);
+  border: 1px solid rgba(79,179,255,0.28);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  min-width: 11ch;       /* exactly fits 000,000,000 */
+  text-align: right;
+}
+
+section { background: var(--panel); border: 1px solid #1b2737; border-radius: 8px; padding: 16px; margin-top: 16px; }
+
+.controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+label { color: var(--muted); font-size: 12px; }
+input[type="text"], input[type="number"] {
+  background: #0e1522; color: var(--text); border: 1px solid #1b2737; padding: 10px 12px; border-radius: 6px;
+}
+.radio-group { display: flex; gap: 12px; align-items: center; }
+.radio { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); }
+.radio input[type="radio"] { accent-color: var(--accent); }
+
+.buttons { display: flex; gap: 8px; }
+button {
+  background: var(--accent); color: #001425; border: none; padding: 10px 14px; border-radius: 6px; font-weight: 600; cursor: pointer;
+}
+button.secondary { background: #203047; color: #dbe6f2; }
+
+.section-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.legend { display: flex; gap: 6px; align-items: center; }
+.chip { padding: 2px 6px; border-radius: 999px; font-size: 11px; color: #051320; }
+.chip-neutral { background: var(--accent); }
+.chip-warn { background: var(--accent2); }
+.chip-hot { background: #ff8a4f; }
+.chip-danger { background: var(--danger); color: #1a0000; }
+
+.book table { width: 100%; border-collapse: collapse; }
+.book th, .book td {
+  text-align: right; padding: 8px 10px; border-bottom: 1px solid #1b2737;
+  font-variant-numeric: tabular-nums; /* keeps numbers aligned */
+}
+.book th:first-child, .book td:first-child { text-align: left; }
+.book tbody tr.best { background: var(--row); }
+.book tbody tr:hover { background: #122036; }
+
+.book td.col-price { font-weight: 700; letter-spacing: 0.15px; }
+.book tr.over .col-price { color: var(--danger); font-weight: 800; }
+
+.col-size .meter {
+  position: relative; width: 100%; height: 22px; border-radius: 4px; overflow: hidden;
+  background: #0e1522; border: 1px solid #1b2737;
+}
+.col-size .fill {
+  position: absolute; left: 0; top: 0; height: 100%; width: 0%;
+  background: var(--bar-neutral);
+  transition: width 0.08s linear;
+}
+.col-size .fill.warn { background: var(--bar-warn); }
+.col-size .fill.hot { background: var(--bar-hot); }
+.col-size .fill.danger {
+  background: var(--bar-danger);
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0, rgba(255,255,255,0.15) 6px, transparent 6px, transparent 12px);
+}
+.col-size .label {
+  position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+  height: 100%; padding: 0 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px;
+}
+
+/* Big‑trade bubbles in the DOM size meter */
+.meter .bubble {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.7);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  animation: bubble-pop 1.2s ease-out forwards;
+}
+.meter .bubble-buy {
+  background: rgba(46, 204, 113, 0.9);
+  border-color: rgba(46, 204, 113, 1);
+}
+.meter .bubble-sell {
+  background: rgba(255, 107, 107, 0.9);
+  border-color: rgba(255, 107, 107, 1);
+}
+.meter .bubble-big {
+  width: 13px;
+  height: 13px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+@keyframes bubble-pop {
+  0%   { opacity: 0; transform: translateY(-50%) scale(0.4); }
+  20%  { opacity: 1; transform: translateY(-50%) scale(1.0); }
+  100% { opacity: 0; transform: translateY(-50%) scale(1.0); }
+}
+
+.pulse { animation: pulse 0.8s ease-out; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(228, 76, 76, 0.65); }
+  100% { box-shadow: 0 0 0 14px rgba(228, 76, 76, 0); }
+}
+
+/* Alert log: newest at the top; DOM order === visual order.
+   We disable CSS scroll-anchoring here and handle anchoring in JS
+   so that when new items are prepended the user's viewport doesn't jump. */
+.alerts .log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; max-height: 240px; overflow: auto; overflow-anchor: none;
+}
+.log-item { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; color: var(--text); }
+.log-item.error { color: var(--danger); }
+
+/* RVOL lines are highlighted and instantly distinguishable from L2 alerts */
+.log-item.rvol { color: var(--accent2); }
+.log-item.rvol.pace { color: var(--good); font-weight: 700; }
+
+/* --- Two-panel order book --- */
+.book-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stat { background: #0e1522; border: 1px solid #1b2737; border-radius: 6px; padding: 8px 10px; }
+.stat-label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+.stat-val { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+/* OBI coloring for quick mean reversion read */
+.stat .pos { color: var(--good); }
+.stat .neg { color: var(--danger); }
+.stat .flat { color: var(--muted); }
+
+.book-panels {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* bid | footprint | ask */
+  gap: 12px;
+  align-items: flex-start;
+}
+.book-panel {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 10px;
+  background: #0d1421;
+}
+.book-panel.bid { border-color: var(--good); }
+.book-panel.ask { border-color: var(--danger); }
+.l2-legend { margin-bottom: 8px; }
+
+/* --- 1m volume strip (full width) --- */
+.vol1m-wrap {
+  position: relative; /* NEW: anchor for the hover tooltip */
+  border: 1px solid #1b2737;
+  border-radius: 6px;
+  background: #050910;
+  padding: 6px;
+  margin-bottom: 12px;
+}
+.vol1m {
+  display: block;
+  width: 100%;
+  height: 128px; /* 2x taller */
+  cursor: crosshair;
+}
+
+/* Hover tooltip for the 1m volume bars */
+.vol-tooltip {
+  position: absolute;
+  z-index: 50;
+  pointer-events: none;
+  background: rgba(17, 23, 35, 0.96);
+  border: 1px solid #1b2737;
+  border-radius: 8px;
+  padding: 6px 8px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.vol-tooltip.hidden { display: none; }
+
+.vol-tooltip .tt-time {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.vol-tooltip .tt-vol {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+body.compact .vol1m-wrap {
+  padding: 4px;
+  margin-bottom: 8px;
+}
+body.compact .vol1m {
+  height: 88px;
+}
+
+/* Force identical heights for alignment */
+.book tr, .footprint-strip tr {
+  height: 32px; /* Set a fixed height */
+}
+/* In Compact mode */
+body.compact .book tr, body.compact .footprint-strip tr {
+  height: 24px;
+}
+
+/* Switch (Compact mode) */
+.switch { position: relative; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.switch .slider {
+  width: 34px; height: 18px; background: #223149; border-radius: 999px; position: relative; transition: background 0.2s ease;
+}
+.switch .slider::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: white; transition: transform 0.2s ease;
+}
+.switch input { display: none; }
+.switch input:checked + .slider { background: var(--accent); }
+.switch input:checked + .slider::after { transform: translateX(16px); }
+.switch .switch-label { color: var(--muted); font-size: 12px; }
+
+/* Compact mode */
+body.compact h1 { font-size: 18px; }
+body.compact .controls { gap: 8px; }
+body.compact input[type="text"], body.compact input[type="number"] { padding: 6px 8px; font-size: 13px; }
+body.compact button { padding: 6px 10px; font-size: 13px; }
+body.compact .book th, body.compact .book td { padding: 4px 6px; font-size: 12px; }
+body.compact .col-rank { display: none; }
+body.compact .alerts .log { max-height: 180px; }
+body.compact .book-stats { gap: 6px; }
+body.compact .stat { padding: 6px 8px; }
+
+/* --- OBI mini chart (sparkline) --- */
+.obi-mini {
+  background: #0e1522;
+  border: 1px solid #1b2737;
+  border-radius: 6px;
+  padding: 4px 6px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.obi-mini canvas {
+  display: block;
+  width: 100%;
+  height: 44px;         /* small but readable */
+}
+body.compact .obi-mini { padding: 4px 6px; }
+body.compact .obi-mini canvas { height: 30px; }  /* tighter in compact mode */
+
+/* Action hint pill: single, high-salience signal */
+.signal-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0b0f14;
+  background: #485a70;
+  white-space: nowrap;
+}
+.signal-pill.long-ok {
+  background: #2ecc71;
+  color: #02130a;
+}
+.signal-pill.fade-short-ok {
+  background: #ff6b6b;
+  color: #1a0000;
+}
+.signal-pill.trend-up {
+  background: #ffd166; /* yellow */
+  color: #201400;
+}
+.signal-pill.trend-down {
+  background: #d96eff; /* magenta */
+  color: #150019;
+}
+
+/* --- Central micro-footprint strip (per rank delta) --- */
+.footprint-strip {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding-top: 34px; /* aligns with table header row now that top mini-graphs are removed */
+}
+.footprint-strip table {
+  border-collapse: collapse;
+}
+.footprint-strip td {
+  padding: 0;
+}
+.footprint-cell {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: #131a26;
+  opacity: 0.18;
+  transition: opacity 0.08s linear, background-color 0.08s linear;
+}
+.footprint-buy {
+  background: var(--good);
+}
+.footprint-sell {
+  background: var(--danger);
+}
+.footprint-neutral {
+  background: #131a26;
+}
+body.compact .footprint-strip {
+  padding-top: 26px;
+}
+body.compact .footprint-cell {
+  width: 18px;
+  height: 18px;
+}
+
+/* --- Combobox (shared by Ticker and Threshold) --- */
+.combo { position: relative; }
+.tokenbox {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  border: 1px solid #1b2737; border-radius: 8px; padding: 8px; min-height: 38px;
+  cursor: text; background: #0e1522;
+}
+.token {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 999px; border: 1px solid #28405d;
+  background: #122036; color: var(--text); font-size: 14px; user-select: none;
+}
+.token button {
+  border: 0; background: transparent; cursor: pointer; font-size: 14px; line-height: 1; color: var(--muted);
+}
+.combo-input {
+  border: 0; outline: none; flex: 1; min-width: 120px; font-size: 14px; padding: 4px;
+  background: transparent; color: var(--text);
+}
+.dropdown {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+  border: 1px solid #1b2737; border-radius: 8px; background: #0d1421; z-index: 1000;
+  max-height: 240px; overflow: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  display: none;
+}
+.dropdown.open { display: block; }
+.option { padding: 10px 12px; cursor: pointer; font-size: 14px; color: var(--text); }
+.option[aria-selected="true"], .option:hover { background: #122036; }
+.no-results { padding: 10px 12px; color: var(--muted); font-size: 13px; }
+.option.focused { outline: 2px solid var(--accent); outline-offset: -2px; }
+.combo-error { color: var(--danger); font-size: 12px; margin-top: 6px; }
+
+/* ---- T&S (TickSonic-like), resizable ---- */
+.tape-wrap {
+  background: var(--panel);
+  border: 1px solid #1b2737;
+  border-radius: 8px;
+  margin-top: 16px;
+  padding: 10px;
+  resize: vertical;        /* <-- mouse-resizable */
+  overflow: auto;
+  min-height: 140px;
+  max-height: 60vh;
+  height: 28vh;            /* initial */
+}
+.tape-quote {
+  display: flex; gap: 18px; margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.tape {
+  height: calc(100% - 30px);
+  overflow: auto;
+  overflow-anchor: none; /* we manage anchoring in JS (newest-at-top) */
+  line-height: 1.1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+}
+.tape .row {
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:6px 8px; border-radius:6px; margin-bottom:6px; background:transparent;
+}
+.tape .row.big { background: #2a2f3a; font-weight:700; }
+.tape .left { display:flex; gap:10px; align-items:center; }
+.tape .badge{ font-size:11px; padding:2px 6px; border-radius:4px; background:#242938; color:#b3b9c7; }
+.tape .price{ opacity:.9; }
+.tape .amt{ font-weight:700; }
+.tape .shares{ opacity:.85; }
+.tape .time{
+  color: var(--muted);
+  flex: 0 0 5ch;                 /* fixed width for MM:SS to avoid drift */
+  text-align: right;
+  font-variant-numeric: tabular-nums;  /* tabular digits keep columns aligned */
+}
+.tape .sym { color:#b6beca; min-width:72px; text-align:right; }
+
+/* colors aligned with ticksonic */
+.col-yellow{ color: #ffcc00; }
+.col-green { color: #2ecc71; }
+.col-white { color: #e6edf3; }
+.col-red   { color: #ff6b6b; }
+.col-magenta{ color: #d96eff; }
