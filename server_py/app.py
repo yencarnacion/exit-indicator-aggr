@@ -378,32 +378,26 @@ def yaml_thresholds():
 @app.get("/api/yaml/dollar-values", include_in_schema=False)
 def yaml_dollar_values():
     """
-    Returns YAML for the Dollar value combobox.
-    Normalizes your on-disk root:
-      dollar-value.yaml:
-        dollarvalue:
-          - label: "$10"
-            threshold: 1000
-            big_threshold: 10000
-    ...into the UI-consumed shape:
+    Returns auto-generated YAML for the Dollar value combobox:
       watchlist:
         - label: "$10"
           threshold: 1000
           big_threshold: 10000
+
+    This replaces manual maintenance of config-data/dollar-value.yaml.
     """
-    default_ = "watchlist: []\n"
-    txt = _read_yaml_or_default("dollar-value.yaml", default_)
-    try:
-        data = _yaml.safe_load(txt) or {}
-        # accept either `watchlist:` or your chosen `dollarvalue:` root
-        arr = data.get("watchlist")
-        if not isinstance(arr, list):
-            arr = data.get("dollarvalue", [])
-        if not isinstance(arr, list):
-            arr = []
-        txt = _yaml.safe_dump({"watchlist": arr}, sort_keys=False)
-    except Exception:
-        pass
+    levels = [0, 1, 2, 4, 5]
+    levels.extend(range(10, 201, 10))
+    levels.extend(range(250, 751, 50))
+    arr = [
+        {
+            "label": f"${lvl}",
+            "threshold": int(lvl * 100),
+            "big_threshold": int(lvl * 1000),
+        }
+        for lvl in levels
+    ]
+    txt = _yaml.safe_dump({"watchlist": arr}, sort_keys=False)
     return PlainTextResponse(txt, media_type="text/yaml")
 
 # --- API models ---
@@ -451,7 +445,6 @@ def api_config():
         "silent": state.silent,
         "dollarThreshold": state.dollar_threshold,
         "bigDollarThreshold": state.big_dollar_threshold,
-        "soundsPath": "/sounds/", # base for ticksonic wavs
         # OBI indicator config
         "obi": {
             "enabled": bool(getattr(cfg, "obi_enabled", True)),

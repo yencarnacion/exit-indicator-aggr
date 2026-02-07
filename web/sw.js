@@ -1,12 +1,6 @@
-const CACHE_VERSION = 'ei-ticksonic-sounds-v1';
+const CACHE_VERSION = 'ei-sounds-v2';
 const SOUND_URLS = [
-  '/sounds/above_ask.wav',
-  '/sounds/below_bid.wav',
-  '/sounds/between_bid_ask.wav',
-  '/sounds/buy.wav',
-  '/sounds/sell.wav',
-  '/sounds/letter_u.wav',
-  '/sounds/letter_d.wav',
+  '/sounds/alarm.mp3',
 ];
 
 self.addEventListener('install', event => {

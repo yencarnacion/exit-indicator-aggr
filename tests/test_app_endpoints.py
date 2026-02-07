@@ -68,9 +68,9 @@ def test_yaml_endpoints_normalize(client, set_config_dir):
         "thresholds:\n  - threshold: 5000\n  - threshold: 10000\n  - threshold: 20000\n",
         encoding="utf-8"
     )
-    # dollar-value.yaml (root 'dollarvalue' -> normalized to 'watchlist')
+    # dollar-value.yaml is no longer used (values are auto-generated)
     (set_config_dir / "dollar-value.yaml").write_text(
-        "dollarvalue:\n  - label: '$10'\n    threshold: 1000\n    big_threshold: 10000\n",
+        "dollarvalue:\n  - label: '$999'\n    threshold: 99900\n    big_threshold: 999000\n",
         encoding="utf-8"
     )
 
@@ -86,5 +86,5 @@ def test_yaml_endpoints_normalize(client, set_config_dir):
         f"Watchlist YAML wrong: {wl_data}"
     assert isinstance(th_data.get("watchlist"), list) and th_data["watchlist"][1]["threshold"] == 10000, \
         f"Threshold YAML normalization failed: {th_data}"
-    assert isinstance(dv_data.get("watchlist"), list) and dv_data["watchlist"][0]["label"] == "$10", \
-        f"Dollar values YAML normalization failed: {dv_data}"
+    assert isinstance(dv_data.get("watchlist"), list) and dv_data["watchlist"][0]["label"] == "$0", \
+        f"Dollar values YAML auto-generation failed: {dv_data}"

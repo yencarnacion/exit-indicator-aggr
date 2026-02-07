@@ -9,7 +9,7 @@ class Config:
     # Web/UI
     port: int = 8086
     default_threshold_shares: int = 20_000
-    sound_file: str = "./web/sounds/hey.mp3"
+    sound_file: str = "./web/sounds/alarm.mp3"
     cooldown_seconds: int = 1
     smart_depth: bool = True
     levels_to_scan: int = 10
