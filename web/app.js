@@ -81,6 +81,10 @@
   let loadingTimer = null;
   let waitingForData = false;
   let activeSymbol = '';
+  // -1: normal (bid<ask), 0: locked (bid==ask), +1: crossed (bid>ask)
+  let lastQuoteRelation = null;
+  let lastQuoteBid = null;
+  let lastQuoteAsk = null;
   const tapeTradeQueue = [];
   let tapeFlushScheduled = false;
   const TAPE_RENDER_BATCH_MAX = 300;
@@ -364,12 +368,145 @@
         try { g.disconnect(); } catch {}
       };
     }
+
+    _scheduleToneAt(startAt, { freq, gain, dur, type = 'sine' }) {
+      if (globalSilent || !this.ctx || this.ctx.state !== 'running') return;
+      const t = Math.max(this.ctx.currentTime, startAt);
+      const targetGain = Math.max(0.0002, +gain || 0.02);
+      const d = Math.max(0.02, +dur || 0.12);
+      const base = Math.max(40, +freq || 440);
+
+      const makeVoice = (mul, weight, oscType = 'sine') => {
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = oscType;
+        osc.frequency.setValueAtTime(Math.max(40, base * mul), t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.0001, targetGain * weight), t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        osc.connect(g);
+        g.connect(this.master);
+        osc.start(t);
+        osc.stop(t + d + 0.002);
+        osc.onended = () => {
+          try { osc.disconnect(); } catch {}
+          try { g.disconnect(); } catch {}
+        };
+      };
+
+      if (type === 'glass') {
+        makeVoice(1.0, 0.70, 'sine');
+        makeVoice(2.0, 0.22, 'sine');
+        makeVoice(3.0, 0.08, 'sine');
+      } else if (type === 'round') {
+        makeVoice(1.0, 0.84, 'sine');
+        makeVoice(0.5, 0.10, 'sine');
+        makeVoice(1.5, 0.06, 'sine');
+      } else {
+        makeVoice(1.0, 1.0, type);
+      }
+    }
+
+    // Match the preview CLI "market-crossed-up" phrase and allow repeating it.
+    playMarketCrossedUp(repeats = 2) {
+      if (globalSilent || !this.ctx || this.ctx.state !== 'running') return;
+      const phrase = [
+        { freq: 1318.52, gain: 0.40, dur: 0.08, type: 'square', at: 0.00 },
+        { freq: 1567.98, gain: 0.38, dur: 0.08, type: 'square', at: 0.10 },
+        { freq: 659.26,  gain: 0.44, dur: 0.56, type: 'sine',   at: 0.00 },
+        { freq: 830.60,  gain: 0.26, dur: 0.48, type: 'glass',  at: 0.36 },
+        { freq: 987.76,  gain: 0.24, dur: 0.48, type: 'glass',  at: 0.60 },
+        { freq: 1174.66, gain: 0.23, dur: 0.51, type: 'glass',  at: 0.84 },
+        { freq: 1396.91, gain: 0.22, dur: 0.54, type: 'glass',  at: 1.08 },
+      ];
+      const phraseLen = 1.62;
+      const phraseGap = 0.18;
+      const count = Math.max(1, Math.floor(repeats || 1));
+      const start = this.ctx.currentTime + 0.01;
+      for (let r = 0; r < count; r++) {
+        const base = start + r * (phraseLen + phraseGap);
+        for (let i = 0; i < phrase.length; i++) {
+          const n = phrase[i];
+          this._scheduleToneAt(base + n.at, n);
+        }
+      }
+    }
+
+    // Match the preview CLI "market-crossed-down" phrase and allow repeating it.
+    playMarketCrossedDown(repeats = 2) {
+      if (globalSilent || !this.ctx || this.ctx.state !== 'running') return;
+      const phrase = [
+        { freq: 246.94, gain: 0.40, dur: 0.08, type: 'square', at: 0.00 },
+        { freq: 220.00, gain: 0.38, dur: 0.08, type: 'square', at: 0.10 },
+        { freq: 493.88, gain: 0.46, dur: 0.56, type: 'sine',   at: 0.00 },
+        { freq: 392.00, gain: 0.30, dur: 0.48, type: 'round',  at: 0.36 },
+        { freq: 329.63, gain: 0.28, dur: 0.48, type: 'round',  at: 0.60 },
+        { freq: 293.66, gain: 0.27, dur: 0.51, type: 'round',  at: 0.84 },
+        { freq: 246.94, gain: 0.26, dur: 0.54, type: 'round',  at: 1.08 },
+      ];
+      const phraseLen = 1.62;
+      const phraseGap = 0.18;
+      const count = Math.max(1, Math.floor(repeats || 1));
+      const start = this.ctx.currentTime + 0.01;
+      for (let r = 0; r < count; r++) {
+        const base = start + r * (phraseLen + phraseGap);
+        for (let i = 0; i < phrase.length; i++) {
+          const n = phrase[i];
+          this._scheduleToneAt(base + n.at, n);
+        }
+      }
+    }
   }
   (async () => {
     const engine = new AggrToneEngine();
     TS_AUDIO.engine = engine;
     TS_AUDIO.ready = await engine.init();
   })();
+  function quoteRelation(bid, ask) {
+    const b = Number(bid);
+    const a = Number(ask);
+    if (!Number.isFinite(b) || !Number.isFinite(a)) return null;
+    const eps = 1e-6;
+    const diff = b - a;
+    if (diff > eps) return 1;
+    if (diff < -eps) return -1;
+    return 0;
+  }
+  function chooseCrossDirection(prevBid, prevAsk, bid, ask) {
+    const eps = 1e-6;
+    const bidCrossedUp = bid > (prevAsk + eps);
+    const askCrossedDown = ask < (prevBid - eps);
+    if (bidCrossedUp && !askCrossedDown) return 'up';
+    if (askCrossedDown && !bidCrossedUp) return 'down';
+    // If both (or neither) are true, pick the stronger move.
+    const bidMove = bid - prevBid;
+    const askMove = prevAsk - ask;
+    return askMove > bidMove ? 'down' : 'up';
+  }
+  function maybePlayCrossedSound(bid, ask) {
+    const rel = quoteRelation(bid, ask);
+    if (rel == null) return;
+    const b = Number(bid);
+    const a = Number(ask);
+    const prev = lastQuoteRelation;
+    const prevBid = lastQuoteBid;
+    const prevAsk = lastQuoteAsk;
+    lastQuoteRelation = rel;
+    lastQuoteBid = Number.isFinite(b) ? b : null;
+    lastQuoteAsk = Number.isFinite(a) ? a : null;
+    // Trigger only on transition into crossed market (bid > ask).
+    if (prev == null || !(prev <= 0 && rel > 0)) return;
+    if (globalSilent || !TS_AUDIO.ready || !TS_AUDIO.engine) return;
+    let dir = 'up';
+    if (Number.isFinite(prevBid) && Number.isFinite(prevAsk) && Number.isFinite(b) && Number.isFinite(a)) {
+      dir = chooseCrossDirection(prevBid, prevAsk, b, a);
+    }
+    if (dir === 'down' && typeof TS_AUDIO.engine.playMarketCrossedDown === 'function') {
+      TS_AUDIO.engine.playMarketCrossedDown(2);
+    } else if (typeof TS_AUDIO.engine.playMarketCrossedUp === 'function') {
+      TS_AUDIO.engine.playMarketCrossedUp(2);
+    }
+  }
   function showLoadingState() {
     const make = (tbody) => {
       tbody.innerHTML = '';
@@ -463,6 +600,9 @@
     ws.onclose = () => {
       setStatus(false, '');
       activeSymbol = '';
+      lastQuoteRelation = null;
+      lastQuoteBid = null;
+      lastQuoteAsk = null;
       setTimeout(connectWS, 1000);
     };
   }
@@ -1026,6 +1166,7 @@
   }
   function onTSQuote(q){
     const { bid, ask } = q;
+    maybePlayCrossedSound(bid, ask);
     if (els.tapeBid && bid!=null) els.tapeBid.textContent = fmt2(bid);
     if (els.tapeAsk && ask!=null) els.tapeAsk.textContent = fmt2(ask);
     if (els.tapeSpread && bid!=null && ask!=null) els.tapeSpread.textContent = fmt2(ask - bid);
@@ -1170,6 +1311,9 @@
       els.sym.focus();
       return;
     }
+    lastQuoteRelation = null;
+    lastQuoteBid = null;
+    lastQuoteAsk = null;
 
     if (vol1mChart && typeof vol1mChart.reset === 'function') {
       vol1mChart.reset();
@@ -1224,6 +1368,9 @@
   }
   async function stop() {
     clearLoadingTimer();
+    lastQuoteRelation = null;
+    lastQuoteBid = null;
+    lastQuoteAsk = null;
 
     if (vol1mChart && typeof vol1mChart.reset === 'function') {
       vol1mChart.reset();

@@ -2,6 +2,63 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r server_py/requirements.txt
 
+## Sound Preview CLI (Go)
+
+Use `tools/sound_preview/main.go` to audition synthetic sounds from terminal before
+changing production sound behavior. The CLI prints a text description before each sound.
+
+### Sound list and descriptions
+
+- `ask-hit` (existing): bright high ping.
+- `bid-hit` (existing): lower darker ping.
+- `market-crossed-up` (new): two jolting accents, then 4 glassy rising tones.
+- `market-crossed-down` (new): two jolting accents, then 4 dark dropping tones.
+
+Both `market-crossed-*` sounds are intentionally longer (about 3x the earlier version).
+
+### Basic usage
+
+```bash
+# Play all sounds in default order
+go run ./tools/sound_preview/main.go
+
+# List all available sound keys
+go run ./tools/sound_preview/main.go -list
+
+# Print what would play, but do not play audio
+go run ./tools/sound_preview/main.go -no-play
+```
+
+### Play specific sounds
+
+```bash
+# Play one sound
+go run ./tools/sound_preview/main.go ask-hit
+
+# Play a subset in your chosen order
+go run ./tools/sound_preview/main.go bid-hit market-crossed-down
+
+# Play a sound twice by repeating the key
+go run ./tools/sound_preview/main.go market-crossed-up market-crossed-up
+go run ./tools/sound_preview/main.go market-crossed-down market-crossed-down
+
+# Increase silence gap between sounds (milliseconds)
+go run ./tools/sound_preview/main.go -gap-ms 300 market-crossed-up market-crossed-down
+```
+
+### Audio player requirement
+
+The Go tool writes a temporary WAV file and calls the first available player:
+- Linux: `aplay`, `paplay`, or `ffplay`
+- macOS: `afplay`
+- Windows: PowerShell `SoundPlayer`
+
+### App behavior note
+
+In the web app, when the market transitions into crossed state (`bid > ask`),
+the crossed phrase is played twice; direction chooses up vs down phrase based on
+whether bid crossed up or ask crossed down.
+
 ## Recording & Replay
 
 The server supports recording live market data streams to compressed NDJSON files (`.ndjson.gz`) and replaying them later—perfect for backtesting, debugging, or development when markets are closed.
