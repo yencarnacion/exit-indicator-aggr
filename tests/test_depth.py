@@ -43,6 +43,24 @@ def test_aggregate_top10_side_specific():
     assert len(alerts) == 1 and alerts[0].side == "BID"
 
 
+def test_aggregate_both_top10_both_side_mode_alerts_either_side():
+    s = State(cooldown_seconds=0.0, default_threshold=5000)
+    s.set_side("BOTH")
+    asks = [
+        _mk("ASK", 100.00, 2600, level=0),
+        _mk("ASK", 100.00, 2600, level=1),  # ask agg 5200 -> alert
+    ]
+    bids = [
+        _mk("BID", 99.90, 2600, level=0),
+        _mk("BID", 99.90, 2700, level=1),  # bid agg 5300 -> alert
+    ]
+
+    _ask_book, _bid_book, alerts, _best_ask, _best_bid = aggregate_both_top10(s, asks, bids)
+    sides = {a.side for a in alerts}
+    assert len(alerts) == 2, f"Expected one ASK + one BID alert in BOTH mode; got {alerts}"
+    assert sides == {"ASK", "BID"}, f"Expected alerts from both sides; got {alerts}"
+
+
 def test_aggregate_skips_non_positive_levels():
     s = State(cooldown_seconds=0.0, default_threshold=100)
     s.set_side("ASK")

@@ -61,8 +61,9 @@ def _aggregate_for_side(
         p = pmap[k]
         total = sums[k]
         book.append(AggregatedLevel(price=p, sumShares=total, rank=i))
-        # Only alert on the state-selected side
-        if side == state.side and total >= thr and state.allow_alert(state.symbol, p):
+        # Alert on the selected side, or both sides when state.side == "BOTH".
+        side_selected = (state.side == "BOTH") or (side == state.side)
+        if side_selected and total >= thr and state.allow_alert(state.symbol, p):
             alerts.append(AlertEvent(
                 side=side, symbol=state.symbol, price=p, sumShares=total, timeISO=now_iso
             ))

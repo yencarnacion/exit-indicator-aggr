@@ -6,6 +6,7 @@ def test_state_defaults_and_setters():
     s = State(cooldown_seconds=1.5, default_threshold=20000)
     assert s.threshold == 20000, "Default threshold should come from config"
     assert s.set_side("bid") == "BID"
+    assert s.set_side("both") == "BOTH"
     assert s.set_side("whatever") == "ASK"
     s.set_threshold(0)
     assert s.threshold == 1, "Threshold must floor at 1"

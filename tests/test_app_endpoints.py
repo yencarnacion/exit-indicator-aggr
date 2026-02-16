@@ -27,6 +27,11 @@ def test_threshold_and_side_mutations(client):
     st = client.get("/api/config").json()
     assert st["currentSide"] == "BID"
 
+    s2 = client.post("/api/side", json={"side": "BOTH"}).json()
+    assert s2["ok"] is True and s2["side"] == "BOTH"
+    st2 = client.get("/api/config").json()
+    assert st2["currentSide"] == "BOTH"
+
 
 def test_start_stop_and_silent(client, app_module):
     # Start with full parameters (symbol, threshold, side, dollar filters, silent)

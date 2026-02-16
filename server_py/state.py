@@ -10,7 +10,7 @@ class State:
     default_threshold: int
 
     symbol: str = ""
-    side: str = "ASK"  # or "BID"
+    side: str = "ASK"  # "ASK", "BID", or "BOTH"
     threshold: int = field(default_factory=int)
     connected: bool = False
     _last_alert: Dict[str, float] = field(default_factory=dict)
@@ -29,7 +29,10 @@ class State:
 
     def set_side(self, side: str) -> str:
         s = (side or "ASK").strip().upper()
-        self.side = "BID" if s == "BID" else "ASK"
+        if s in ("ASK", "BID", "BOTH"):
+            self.side = s
+        else:
+            self.side = "ASK"
         return self.side
 
     def set_threshold(self, v: int):

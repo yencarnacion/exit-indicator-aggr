@@ -7,6 +7,7 @@
     stop: document.getElementById('stopBtn'),
     sideAsk: document.getElementById('sideAsk'),
     sideBid: document.getElementById('sideBid'),
+    sideBoth: document.getElementById('sideBoth'),
     test: document.getElementById('testSoundBtn'),
     bookBidBody: document.querySelector('#bookTableBid tbody'),
     bookAskBody: document.querySelector('#bookTableAsk tbody'),
@@ -98,7 +99,17 @@
     return Number.isFinite(n) ? n.toFixed(4) : String(p);
   }
   function currentSide() {
+    if (els.sideBoth && els.sideBoth.checked) return 'BOTH';
     return els.sideBid && els.sideBid.checked ? 'BID' : 'ASK';
+  }
+  function setSideSelection(side) {
+    const s = (side || 'ASK').toUpperCase();
+    if (els.sideAsk) els.sideAsk.checked = (s === 'ASK');
+    if (els.sideBid) els.sideBid.checked = (s === 'BID');
+    if (els.sideBoth) els.sideBoth.checked = (s === 'BOTH');
+    if (s !== 'ASK' && s !== 'BID' && s !== 'BOTH' && els.sideAsk) {
+      els.sideAsk.checked = true;
+    }
   }
   function setBookTitle(_side) { /* no-op (title removed in new UI) */ }
   function formatShares(n) {
@@ -143,11 +154,7 @@
       const res = await fetch('/api/config');
       const cfg = await res.json();
       els.thr.value = cfg.currentThresholdShares || cfg.defaultThresholdShares || 20000;
-      if (cfg.currentSide === 'BID') {
-        if (els.sideBid) els.sideBid.checked = true; if (els.sideAsk) els.sideAsk.checked = false;
-      } else {
-        if (els.sideAsk) els.sideAsk.checked = true; if (els.sideBid) els.sideBid.checked = false;
-      }
+      setSideSelection(cfg.currentSide);
       soundURL = cfg.soundURL || '';
       soundAvailable = !!cfg.soundAvailable;
       globalSilent = !!cfg.silent;
@@ -553,7 +560,7 @@
           setStatus(!!msg.data.connected, msg.data.symbol || '');
           activeSymbol = msg.data.symbol || '';
           if (msg.data.side) {
-            if (msg.data.side === 'BID') { if (els.sideBid) els.sideBid.checked = true; } else { if (els.sideAsk) els.sideAsk.checked = true; }
+            setSideSelection(msg.data.side);
             setBookTitle(msg.data.side);
           }
         } else if (msg.type === 'stats') {
@@ -1445,6 +1452,7 @@
   els.thr.addEventListener('change', updateThreshold);
   if (els.sideAsk) els.sideAsk.addEventListener('change', () => { if (els.sideAsk.checked) { setBookTitle('ASK'); setSide('ASK'); } });
   if (els.sideBid) els.sideBid.addEventListener('change', () => { if (els.sideBid.checked) { setBookTitle('BID'); setSide('BID'); } });
+  if (els.sideBoth) els.sideBoth.addEventListener('change', () => { if (els.sideBoth.checked) { setBookTitle('BOTH'); setSide('BOTH'); } });
   if (els.compact) {
     els.compact.addEventListener('change', () => {
       document.body.classList.toggle('compact', els.compact.checked);
