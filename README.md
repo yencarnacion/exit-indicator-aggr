@@ -4,8 +4,10 @@ pip install -r server_py/requirements.txt
 
 ## Sound Preview CLI (Go)
 
-Use `tools/sound_preview/main.go` to audition synthetic sounds from terminal before
-changing production sound behavior. The CLI prints a text description before each sound.
+Use `tools/sound_preview/main.go` to audition app sounds from terminal before
+changing production sound behavior. The CLI includes:
+- built-in synth tones used by T&S/crossed-market audio
+- file-backed sounds discovered from `web/sounds` (`.wav`, `.wave`, `.mp3`, `.mpeg`)
 
 ### Sound list and descriptions
 
@@ -13,20 +15,27 @@ changing production sound behavior. The CLI prints a text description before eac
 - `bid-hit` (existing): lower darker ping.
 - `market-crossed-up` (new): two jolting accents, then 4 glassy rising tones.
 - `market-crossed-down` (new): two jolting accents, then 4 dark dropping tones.
+- `rvol-tick-close`: short descending tick for RVOL close alerts.
+- `rvol-tick-pace`: higher descending tick for RVOL pace alerts.
+- `alert-fallback-beep`: fallback alert beep when file sound cannot play.
+- file sounds (for example `alarm.mp3`): discovered automatically from `web/sounds`.
 
 Both `market-crossed-*` sounds are intentionally longer (about 3x the earlier version).
 
 ### Basic usage
 
 ```bash
-# Play all sounds in default order
+# Play all known sounds (synth + discovered files) in default order
 go run ./tools/sound_preview/main.go
 
-# List all available sound keys
+# List all available sound keys with source tags ([synth] / [file])
 go run ./tools/sound_preview/main.go -list
 
 # Print what would play, but do not play audio
 go run ./tools/sound_preview/main.go -no-play
+
+# Scan a different sound directory instead of web/sounds
+go run ./tools/sound_preview/main.go -sounds-dir ./some/other/sounds -list
 ```
 
 ### Play specific sounds
@@ -38,6 +47,9 @@ go run ./tools/sound_preview/main.go ask-hit
 # Play a subset in your chosen order
 go run ./tools/sound_preview/main.go bid-hit market-crossed-down
 
+# Play a file-backed sound (key is the filename)
+go run ./tools/sound_preview/main.go alarm.mp3
+
 # Play a sound twice by repeating the key
 go run ./tools/sound_preview/main.go market-crossed-up market-crossed-up
 go run ./tools/sound_preview/main.go market-crossed-down market-crossed-down
@@ -48,10 +60,10 @@ go run ./tools/sound_preview/main.go -gap-ms 300 market-crossed-up market-crosse
 
 ### Audio player requirement
 
-The Go tool writes a temporary WAV file and calls the first available player:
-- Linux: `aplay`, `paplay`, or `ffplay`
-- macOS: `afplay`
-- Windows: PowerShell `SoundPlayer`
+The Go tool uses:
+- synth sounds: temporary WAV + `aplay`/`paplay`/`ffplay` (Linux), `afplay` (macOS)
+- MP3 file sounds: `ffplay`, `afplay`, `mpg123`, `mpg321`, or `play` (SoX)
+- Windows WAV fallback: PowerShell `SoundPlayer`
 
 ### App behavior note
 

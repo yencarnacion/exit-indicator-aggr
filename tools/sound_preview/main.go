@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -30,6 +31,13 @@ type soundDef struct {
 	title       string
 	description string
 	notes       []note
+	filePath    string
+	source      string
+}
+
+type playerCmd struct {
+	name string
+	args []string
 }
 
 func waveSample(kind string, phase float64) float64 {
@@ -177,22 +185,70 @@ func commandExists(name string) bool {
 	return err == nil
 }
 
+func runFirstAvailable(candidates []playerCmd) error {
+	available := make([]string, 0, len(candidates))
+	var lastErr error
+
+	for _, c := range candidates {
+		if !commandExists(c.name) {
+			continue
+		}
+		available = append(available, c.name)
+		if err := exec.Command(c.name, c.args...).Run(); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+
+	if len(available) == 0 {
+		names := make([]string, 0, len(candidates))
+		for _, c := range candidates {
+			names = append(names, c.name)
+		}
+		return fmt.Errorf("no supported audio player found (install one of: %s)", strings.Join(names, ", "))
+	}
+	return fmt.Errorf("audio playback failed via %s: %w", strings.Join(available, ", "), lastErr)
+}
+
 func playWAV(path string) error {
-	switch {
-	case commandExists("aplay"):
-		return exec.Command("aplay", "-q", path).Run()
-	case commandExists("paplay"):
-		return exec.Command("paplay", path).Run()
-	case commandExists("ffplay"):
-		return exec.Command("ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path).Run()
-	case commandExists("afplay"):
-		return exec.Command("afplay", path).Run()
-	case runtime.GOOS == "windows":
+	err := runFirstAvailable([]playerCmd{
+		{name: "aplay", args: []string{"-q", path}},
+		{name: "paplay", args: []string{path}},
+		{name: "ffplay", args: []string{"-nodisp", "-autoexit", "-loglevel", "quiet", path}},
+		{name: "afplay", args: []string{path}},
+	})
+	if err == nil {
+		return nil
+	}
+
+	if runtime.GOOS == "windows" {
 		quoted := strings.ReplaceAll(path, "'", "''")
 		ps := fmt.Sprintf("(New-Object Media.SoundPlayer '%s').PlaySync();", quoted)
 		return exec.Command("powershell", "-NoProfile", "-Command", ps).Run()
+	}
+	return err
+}
+
+func playMP3(path string) error {
+	return runFirstAvailable([]playerCmd{
+		{name: "ffplay", args: []string{"-nodisp", "-autoexit", "-loglevel", "quiet", path}},
+		{name: "afplay", args: []string{path}},
+		{name: "mpg123", args: []string{"-q", path}},
+		{name: "mpg321", args: []string{"-q", path}},
+		{name: "play", args: []string{"-q", path}},
+	})
+}
+
+func playAudioFile(path string) error {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".wav", ".wave":
+		return playWAV(path)
+	case ".mp3", ".mpeg":
+		return playMP3(path)
 	default:
-		return errors.New("no supported audio player found (install one of: aplay, paplay, ffplay, afplay)")
+		return fmt.Errorf("unsupported audio file extension %q for %s", ext, path)
 	}
 }
 
@@ -208,11 +264,55 @@ func playSamples(samples []int16) error {
 	return playWAV(path)
 }
 
-func buildSounds() map[string]soundDef {
+func isSupportedAudioExt(ext string) bool {
+	switch strings.ToLower(ext) {
+	case ".wav", ".wave", ".mp3", ".mpeg":
+		return true
+	default:
+		return false
+	}
+}
+
+func discoverFileSounds(soundDir string) ([]soundDef, error) {
+	entries, err := os.ReadDir(soundDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	fileSounds := make([]soundDef, 0)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		ext := strings.ToLower(filepath.Ext(name))
+		if !isSupportedAudioExt(ext) {
+			continue
+		}
+		fileSounds = append(fileSounds, soundDef{
+			key:         name,
+			title:       fmt.Sprintf("File sound (%s)", strings.TrimPrefix(ext, ".")),
+			description: "Static alert file served by /sounds/<filename>.",
+			filePath:    filepath.Join(soundDir, name),
+			source:      "file",
+		})
+	}
+
+	sort.Slice(fileSounds, func(i, j int) bool {
+		return strings.ToLower(fileSounds[i].key) < strings.ToLower(fileSounds[j].key)
+	})
+	return fileSounds, nil
+}
+
+func buildSynthSounds() map[string]soundDef {
 	askHit := soundDef{
 		key:         "ask-hit",
 		title:       "Ask hit (existing)",
 		description: "Clean bright high ping. Existing at_ask-style hit.",
+		source:      "synth",
 		notes: []note{
 			{freqHz: 659.26, startS: 0.00, durS: 0.20, amp: 0.32, wave: "sine"},
 		},
@@ -221,6 +321,7 @@ func buildSounds() map[string]soundDef {
 		key:         "bid-hit",
 		title:       "Bid hit (existing)",
 		description: "Lower darker ping. Existing at_bid-style hit.",
+		source:      "synth",
 		notes: []note{
 			{freqHz: 493.88, startS: 0.00, durS: 0.20, amp: 0.34, wave: "sine"},
 		},
@@ -230,6 +331,7 @@ func buildSounds() map[string]soundDef {
 		title: "Market crossed up (new)",
 		description: "Starts with two jolting ask-hit accents, then 4 glassy bright rising tones " +
 			"(crossing upward continuation).",
+		source: "synth",
 		notes: []note{
 			{freqHz: 1318.52, startS: 0.00, durS: 0.08, amp: 0.40, wave: "square"},
 			{freqHz: 1567.98, startS: 0.10, durS: 0.08, amp: 0.38, wave: "square"},
@@ -245,6 +347,7 @@ func buildSounds() map[string]soundDef {
 		title: "Market crossed down (new)",
 		description: "Starts with two jolting bid-hit accents, then 4 dark round dropping tones " +
 			"(crossing downward continuation).",
+		source: "synth",
 		notes: []note{
 			{freqHz: 246.94, startS: 0.00, durS: 0.08, amp: 0.40, wave: "square"},
 			{freqHz: 220.00, startS: 0.10, durS: 0.08, amp: 0.38, wave: "square"},
@@ -255,26 +358,88 @@ func buildSounds() map[string]soundDef {
 			{freqHz: 246.94, startS: 1.08, durS: 0.54, amp: 0.26, wave: "round"},
 		},
 	}
+	rvolTickClose := soundDef{
+		key:         "rvol-tick-close",
+		title:       "RVOL tick (close)",
+		description: "Short descending square tick used for RVOL close alerts.",
+		source:      "synth",
+		notes: []note{
+			{freqHz: 1600.00, startS: 0.000, durS: 0.020, amp: 0.06, wave: "square"},
+			{freqHz: 1200.00, startS: 0.008, durS: 0.016, amp: 0.05, wave: "square"},
+		},
+	}
+	rvolTickPace := soundDef{
+		key:         "rvol-tick-pace",
+		title:       "RVOL tick (pace)",
+		description: "Higher short descending square tick used for RVOL pace alerts.",
+		source:      "synth",
+		notes: []note{
+			{freqHz: 2400.00, startS: 0.000, durS: 0.020, amp: 0.06, wave: "square"},
+			{freqHz: 1800.00, startS: 0.008, durS: 0.016, amp: 0.05, wave: "square"},
+		},
+	}
+	alertFallback := soundDef{
+		key:         "alert-fallback-beep",
+		title:       "Alert fallback beep",
+		description: "Sine beep fallback when file-based alert audio is unavailable.",
+		source:      "synth",
+		notes: []note{
+			{freqHz: 880.00, startS: 0.00, durS: 0.15, amp: 0.10, wave: "sine"},
+		},
+	}
 	return map[string]soundDef{
 		askHit.key:            askHit,
 		bidHit.key:            bidHit,
 		marketCrossedUp.key:   marketCrossedUp,
 		marketCrossedDown.key: marketCrossedDown,
+		rvolTickClose.key:     rvolTickClose,
+		rvolTickPace.key:      rvolTickPace,
+		alertFallback.key:     alertFallback,
 	}
+}
+
+func buildCatalog(soundDir string) (map[string]soundDef, []string, error) {
+	sounds := buildSynthSounds()
+	order := []string{
+		"ask-hit",
+		"bid-hit",
+		"market-crossed-up",
+		"market-crossed-down",
+		"rvol-tick-close",
+		"rvol-tick-pace",
+		"alert-fallback-beep",
+	}
+
+	fileSounds, err := discoverFileSounds(soundDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, s := range fileSounds {
+		if _, exists := sounds[s.key]; exists {
+			s.key = "file:" + s.key
+		}
+		sounds[s.key] = s
+		order = append(order, s.key)
+	}
+	return sounds, order, nil
 }
 
 func main() {
 	listOnly := flag.Bool("list", false, "List available sounds and exit")
 	gapMs := flag.Int("gap-ms", 180, "Silence gap between sounds in milliseconds")
 	noPlay := flag.Bool("no-play", false, "Print descriptions but skip audio playback")
+	soundsDir := flag.String("sounds-dir", "web/sounds", "Directory to scan for .wav/.mp3 sound files")
 	flag.Parse()
 
-	sounds := buildSounds()
-	defaultOrder := []string{
-		"ask-hit",
-		"bid-hit",
-		"market-crossed-up",
-		"market-crossed-down",
+	if *gapMs < 0 {
+		fmt.Fprintln(os.Stderr, "-gap-ms must be >= 0")
+		os.Exit(2)
+	}
+
+	sounds, defaultOrder, err := buildCatalog(*soundsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to build sound catalog: %v\n", err)
+		os.Exit(2)
 	}
 	order := flag.Args()
 	if len(order) == 0 {
@@ -285,7 +450,10 @@ func main() {
 		fmt.Println("Available sounds:")
 		for _, k := range defaultOrder {
 			s := sounds[k]
-			fmt.Printf("- %s: %s\n", s.key, s.title)
+			fmt.Printf("- %s [%s]: %s\n", s.key, s.source, s.title)
+			if s.filePath != "" {
+				fmt.Printf("    path: %s\n", s.filePath)
+			}
 		}
 		return
 	}
@@ -293,22 +461,32 @@ func main() {
 	for _, key := range order {
 		s, ok := sounds[key]
 		if !ok {
-			fmt.Fprintf(os.Stderr, "Unknown sound key: %s\n", key)
+			fmt.Fprintf(os.Stderr, "Unknown sound key: %s (run with -list)\n", key)
 			os.Exit(2)
 		}
 
 		fmt.Printf("[PLAY] %s :: %s\n", s.key, s.title)
 		fmt.Printf("       %s\n", s.description)
-
-		samples, err := synthesize(s.notes)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to synthesize %q: %v\n", s.key, err)
-			os.Exit(3)
+		if s.filePath != "" {
+			fmt.Printf("       file: %s\n", s.filePath)
 		}
+
 		if !*noPlay {
-			if err := playSamples(samples); err != nil {
-				fmt.Fprintf(os.Stderr, "Audio playback failed for %q: %v\n", s.key, err)
-				os.Exit(4)
+			if s.filePath != "" {
+				if err := playAudioFile(s.filePath); err != nil {
+					fmt.Fprintf(os.Stderr, "Audio playback failed for %q: %v\n", s.key, err)
+					os.Exit(4)
+				}
+			} else {
+				samples, err := synthesize(s.notes)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to synthesize %q: %v\n", s.key, err)
+					os.Exit(3)
+				}
+				if err := playSamples(samples); err != nil {
+					fmt.Fprintf(os.Stderr, "Audio playback failed for %q: %v\n", s.key, err)
+					os.Exit(4)
+				}
 			}
 		}
 		time.Sleep(time.Duration(*gapMs) * time.Millisecond)
