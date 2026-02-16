@@ -94,8 +94,13 @@ def tns_log(msg: str):
 state = State(cooldown_seconds=cfg.cooldown_seconds, default_threshold=cfg.default_threshold_shares)
 ws_clients: Set[WebSocket] = set()
 ws_lock = asyncio.Lock()
-# Sound
-_snd = sound_info(cfg.sound_file)
+# Alert sounds by side:
+# - BID alerts -> alarm.mp3
+# - ASK alerts -> alarm-down.mp3
+_snd_bid = sound_info("./web/sounds/alarm.mp3")
+_snd_ask = sound_info("./web/sounds/alarm-down.mp3")
+# Back-compat fields used by older clients
+_snd = _snd_bid
 # Recording / playback setup
 REC_PATH = os.getenv("EI_RECORD_TO", "").strip()
 REPLAY_FROM = os.getenv("EI_REPLAY_FROM", "").strip()
@@ -440,6 +445,8 @@ def api_config():
         "smartDepth": cfg.smart_depth,
         "soundAvailable": _snd.available,
         "soundURL": _snd.url,
+        "alertSoundAvailable": {"BID": _snd_bid.available, "ASK": _snd_ask.available},
+        "alertSoundURLs": {"BID": _snd_bid.url, "ASK": _snd_ask.url},
         "currentSide": state.side,
         # T&S config/state
         "silent": state.silent,

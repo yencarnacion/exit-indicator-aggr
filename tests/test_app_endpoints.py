@@ -9,7 +9,8 @@ def test_health_and_config(client):
     # Presence & types (soundAvailable may be False if file missing)
     for key in ("defaultThresholdShares", "currentThresholdShares", "cooldownSeconds",
                 "levelsToScan", "priceReference", "smartDepth",
-                "soundAvailable", "currentSide", "silent", "dollarThreshold", "bigDollarThreshold"):
+                "soundAvailable", "currentSide", "silent", "dollarThreshold", "bigDollarThreshold",
+                "alertSoundAvailable", "alertSoundURLs"):
         assert key in cfg, f"/api/config missing '{key}': {cfg}"
 
 

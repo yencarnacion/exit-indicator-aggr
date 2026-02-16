@@ -1,6 +1,7 @@
-const CACHE_VERSION = 'ei-sounds-v2';
+const CACHE_VERSION = 'ei-sounds-v3';
 const SOUND_URLS = [
   '/sounds/alarm.mp3',
+  '/sounds/alarm-down.mp3',
 ];
 
 self.addEventListener('install', event => {

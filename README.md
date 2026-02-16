@@ -18,7 +18,7 @@ changing production sound behavior. The CLI includes:
 - `rvol-tick-close`: short descending tick for RVOL close alerts.
 - `rvol-tick-pace`: higher descending tick for RVOL pace alerts.
 - `alert-fallback-beep`: fallback alert beep when file sound cannot play.
-- file sounds (for example `alarm.mp3`): discovered automatically from `web/sounds`.
+- file sounds (for example `alarm.mp3` and `alarm-down.mp3`): discovered automatically from `web/sounds`.
 
 Both `market-crossed-*` sounds are intentionally longer (about 3x the earlier version).
 
@@ -49,6 +49,9 @@ go run ./tools/sound_preview/main.go bid-hit market-crossed-down
 
 # Play a file-backed sound (key is the filename)
 go run ./tools/sound_preview/main.go alarm.mp3
+
+# Play the down alarm file
+go run ./tools/sound_preview/main.go alarm-down.mp3
 
 # Play a sound twice by repeating the key
 go run ./tools/sound_preview/main.go market-crossed-up market-crossed-up

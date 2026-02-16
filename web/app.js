@@ -66,10 +66,10 @@
   // --- 1m volume chart handle ---
   let vol1mChart = null;
   let ws;
-  let audio;
-  let audioReady = false;
-  let soundURL = '';
-  let soundAvailable = false;
+  let soundURLBySide = { BID: '', ASK: '' };
+  let soundAvailableBySide = { BID: false, ASK: false };
+  let audioBySide = { BID: null, ASK: null };
+  let audioReadyBySide = { BID: false, ASK: false };
   let globalSilent = false;
  
   // WebAudio autoplay policy (Chrome/Opera): resume only after a user gesture.
@@ -155,18 +155,27 @@
       const cfg = await res.json();
       els.thr.value = cfg.currentThresholdShares || cfg.defaultThresholdShares || 20000;
       setSideSelection(cfg.currentSide);
-      soundURL = cfg.soundURL || '';
-      soundAvailable = !!cfg.soundAvailable;
+      const alertURLs = cfg.alertSoundURLs || {};
+      const alertAvailable = cfg.alertSoundAvailable || {};
+      soundURLBySide.BID = alertURLs.BID || cfg.soundURL || '';
+      soundURLBySide.ASK = alertURLs.ASK || '/sounds/alarm-down.mp3';
+      soundAvailableBySide.BID = (alertAvailable.BID != null) ? !!alertAvailable.BID : !!cfg.soundAvailable;
+      soundAvailableBySide.ASK = (alertAvailable.ASK != null) ? !!alertAvailable.ASK : !!soundURLBySide.ASK;
       globalSilent = !!cfg.silent;
       if (els.silent) els.silent.checked = globalSilent;
       tns.dollar = parseInt(cfg.dollarThreshold || 0, 10) || 0;
       tns.bigDollar = parseInt(cfg.bigDollarThreshold || 0, 10) || 0;
-      if (soundAvailable && soundURL) {
-        audio = new Audio(soundURL);
-        audio.preload = 'auto';
-        audio.addEventListener('canplaythrough', () => { audioReady = true; }, { once: true });
+      for (const side of ['BID', 'ASK']) {
+        audioBySide[side] = null;
+        audioReadyBySide[side] = false;
+        const u = soundURLBySide[side];
+        if (!soundAvailableBySide[side] || !u) continue;
+        const a = new Audio(u);
+        a.preload = 'auto';
+        a.addEventListener('canplaythrough', () => { audioReadyBySide[side] = true; }, { once: true });
+        audioBySide[side] = a;
         // warm cache
-        fetch(soundURL, { cache: 'force-cache' }).catch(() => {});
+        fetch(u, { cache: 'force-cache' }).catch(() => {});
       }
     } catch (e) {
       console.warn('config failed', e);
@@ -207,7 +216,9 @@
       // Optional: unlock the HTMLAudioElement used by playSound()
       // by doing a muted play/pause once.
       try {
-        if (audio && typeof audio.play === 'function') {
+        for (const side of ['BID', 'ASK']) {
+          const audio = audioBySide[side];
+          if (!audio || typeof audio.play !== 'function') continue;
           const prevMuted = audio.muted;
           audio.muted = true;
           const p = audio.play();
@@ -240,8 +251,14 @@
       console.log('\u0007');
     }
   }
-  async function playSound() {
-    if (audio && audioReady) {
+  function normalizeAlertSide(side) {
+    const s = String(side || '').toUpperCase();
+    return s === 'ASK' ? 'ASK' : 'BID';
+  }
+  async function playSound(side = 'BID') {
+    const key = normalizeAlertSide(side);
+    const audio = audioBySide[key];
+    if (audio && audioReadyBySide[key]) {
       try { await audio.play(); return; } catch (_) {}
     }
     beepFallback();
@@ -586,7 +603,7 @@
         } else if (msg.type === 'alert') {
           appendAlert(msg.data);
           pulseRowForAlert(msg.data);
-          if (!globalSilent) playSound(); // reuse existing alert beep, honor global mute
+          if (!globalSilent) playSound(msg.data && msg.data.side);
         } else if (msg.type === 'quote') {
           onTSQuote(msg);
         } else if (msg.type === 'trade') {
@@ -1428,7 +1445,7 @@
   // Events
   els.start.addEventListener('click', start);
   els.stop.addEventListener('click', stop);
-  els.test.addEventListener('click', () => playSound());
+  els.test.addEventListener('click', () => playSound(currentSide()));
   if (els.silent) {
     els.silent.addEventListener('change', async () => {
       globalSilent = !!els.silent.checked;
